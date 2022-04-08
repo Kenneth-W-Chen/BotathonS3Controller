@@ -183,8 +183,10 @@ async def _main():
 #             sys.exit()
 
 try:
-    teamNumber = sys.argv[2]
-except IndexError:
+    teamNumber = sys.argv[1]
+    int(teamNumber)
+
+except (IndexError, ValueError):
     print("\nWARNING:\n\nThis executable should be run through command prompt with your team number as an argument.\n"
           "Usage:\t'UNTRoboticsXBoxController.exe <team number>'\n"
           "Ex:\t\t'UNTRoboticsXBoxController.exe 12'\n"
@@ -202,6 +204,7 @@ asyncio.run(_main())
 
 # p1 = multiprocessing.Process(target=waitToKill)
 # p1.start()
+
 #List of event types (as far as I'm aware, this numbering is constant)
 #Axes input:    1536
 #Button Down:   1539        True
