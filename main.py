@@ -1,3 +1,5 @@
+import signal
+
 import pygame
 import websockets
 import asyncio
@@ -66,48 +68,69 @@ axisToString = ["L-Y",
                 "RIGHT_TRIGGER"
                 ]
 
-
+print("Trying to add controller to list")
 for i in range(0, pygame.joystick.get_count()):
     # create a Joystick object in our list
     joysticks.append(pygame.joystick.Joystick(i))
     # initialize them all (-1 means loop forever)
     joysticks[-1].init()
-
+    print("Initialized {} controller(s).".format(i+1))
 async def _main():
     seqNum = 0
-    async with websockets.connect("ws://untrobotics.com:9111/team",subprotocols=['team']) as websocket:
-        while doStuff:
-            event = pygame.event.wait()
-            event_type = event.type
-            #make sure that it's a button input (instead of connecting the controller, activating the mic [idk how that works], etc)
-            if event_type == 1536 or event_type == 1538 or event_type == 1539 or event_type == 1540:
-                eventDict = event.__dict__
-                key = ""
-                if event_type == 1536: #Input is an axis
-                    key = axisToString[eventDict['axis']]
-                    value = eventDict['value']
+    print("Trying to connect to websocket")
+    # async with websockets.connect("ws://untrobotics.com:9111/team",subprotocols=['team']) as websocket:
+    async for websocket in websockets.connect("ws://untrobotics.com:9111/team",subprotocols=['team']):
+        # while doStuff:
+        print("Connected to websocket")
+        #todo: i think this needs the while loop? it might be closing the connection every loop?
+        try:
+            while doStuff:
+                event = pygame.event.wait()
+                event_type = event.type
+                #make sure that it's a button input (instead of connecting the controller, activating the mic [idk how that works], etc)
+                if event_type == 1536 or event_type == 1538 or event_type == 1539 or event_type == 1540:
+                    eventDict = event.__dict__
+                    key = ""
+                    if event_type == 1536: #Input is an axis
+                        key = axisToString[eventDict['axis']]
+                        value = eventDict['value']
 
-                elif event_type==1538: #Input is D-Pad
-                    key = "DPAD1"
-                    coords = eventDict['value']
-                    value = {'x':coords[0], 'y':coords[1]}
-                else: #Input is a button
-                    key = buttonToString[eventDict['button']]
-                    value = event_type == 1539
-                await websocket.send(json.dumps(
-                {
-                        'teamNumber': teamNumber,
-                        'sequenceNumber': seqNum,
-                        'eventType': "XBOX",
-                        'input':
-                            {
-                                'type': "AXIS" if event_type == 1536 else "DPAD" if event_type == 1538 else "BUTTON",
-                                'key': key,
-                                'value': value
-                            }
-                }
-                ))
-                seqNum += 1
+                    elif event_type==1538: #Input is D-Pad
+                        key = "DPAD1"
+                        coords = eventDict['value']
+                        value = {'x':coords[0], 'y':coords[1]}
+                    else: #Input is a button
+                        key = buttonToString[eventDict['button']]
+                        value = event_type == 1539
+                    print("Sending input for {}, value of {}. Total inputs sent: {}".format(key,value, seqNum))
+                    await websocket.send(json.dumps(
+                    {
+                            'teamNumber': teamNumber,
+                            'sequenceNumber': seqNum,
+                            'eventType': "XBOX",
+                            'input':
+                                {
+                                    'type': "AXIS" if event_type == 1536 else "DPAD" if event_type == 1538 else "BUTTON",
+                                    'key': key,
+                                    'value': value
+                                }
+                    }
+                    ))
+                    seqNum += 1
+                    print("Input successfully sent.")
+                elif event_type==1541: #This is the event for when a controller is connected, just reinitializing the list
+                    for i in range(0, pygame.joystick.get_count()):
+                        # create a Joystick object in our list
+                        joysticks.append(pygame.joystick.Joystick(i))
+                        # initialize them all (-1 means loop forever)
+                        joysticks[-1].init()
+                else:
+                    print(event)
+                    # print( await websocket.recv())
+        except websockets.ConnectionClosed:
+            print("Web Socket disconnected. Trying to reconnect...")
+            continue
+    print("Exited loop.")
     # clock.tick(1)
     # for event in pygame.event.get():
     #     inputPackage.append(event)
@@ -159,8 +182,24 @@ async def _main():
 #         if msg == "-E":
 #             sys.exit()
 
-teamNumber = sys.argv[1]
+try:
+    teamNumber = sys.argv[2]
+except IndexError:
+    print("\nWARNING:\n\nThis executable should be run through command prompt with your team number as an argument.\n"
+          "Usage:\t'UNTRoboticsXBoxController.exe <team number>'\n"
+          "Ex:\t\t'UNTRoboticsXBoxController.exe 12'\n"
+          "Quitting program...")
+    quit()
 asyncio.run(_main())
+# loop = asyncio.get_event_loop()
+# main_task = asyncio.ensure_future(_main())
+# for signal in [signal.SIGINT, signal.SIGTERM]:
+#     loop.add_signal_handler(signal,main_task.cancel)
+# try:
+#     loop.run_forever(main_task)
+# finally:
+#     loop.close()
+
 # p1 = multiprocessing.Process(target=waitToKill)
 # p1.start()
 #List of event types (as far as I'm aware, this numbering is constant)
