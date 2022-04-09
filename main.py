@@ -6,75 +6,6 @@ import asyncio
 import json
 import sys
 import multiprocessing
-
-pygame.init()
-joysticks = []
-
-# {
-# sequenceNumber: 1234,
-# eventType: "XBOX",
-# input:
-#   {
-#      type: "DPAD"
-#      key: "DPAD1",
-#      value: {
-#        x: 0.5,
-#        y: -0.5
-#      }
-#   }
-# }
-
-#inputPackage = []
-
-#set all axes "initial" value to -10 so that input is sent if they start at 1 from the start of the program
-#idk actually, just a safety net
-# axisValues = [-10.0,
-#               -10.0,
-#               -10.0,
-#               -10.0,
-#               -10.0,
-#               -10.0]
-#making this for button backlog stuff
-# waitingToSendInput = [-1,
-#                       -1,
-#                       -1,
-#                       -1,
-#                       -1,
-#                       -1,
-#                       -1,
-#                       -1,
-#                       -1,
-#                       -1,
-#                       -1,
-#                       ]
-doStuff = True
-buttonToString = ["A_BUTTON",
-                  "B_BUTTON",
-                  "X_BUTTON",
-                  "Y_BUTTON",
-                  "LEFT_BUMPER",
-                  "RIGHT_BUMPER",
-                  "VIEW_BUTTON",
-                  "MENU_BUTTON",
-                  "L_JOY_PRESS",
-                  "R_JOY_PRESS",
-                  "XBOX_BUTTON",
-                  "HOME_BUTTON",]
-axisToString = ["L-X",
-                "L-Y",
-                "R-X",
-                "R-Y",
-                "LEFT_TRIGGER",
-                "RIGHT_TRIGGER"
-                ]
-
-print("Trying to add controller to list")
-for i in range(0, pygame.joystick.get_count()):
-    # create a Joystick object in our list
-    joysticks.append(pygame.joystick.Joystick(i))
-    # initialize them all (-1 means loop forever)
-    joysticks[-1].init()
-    print("Initialized {} controller(s).".format(i+1))
 async def _main():
     seqNum = 0
     print("Trying to connect to websocket")
@@ -105,7 +36,7 @@ async def _main():
                     print("Sending input for {}, value of {}. Total inputs sent: {}".format(key,value, seqNum))
                     await websocket.send(json.dumps(
                     {
-                            'teamNumber': teamNumber,
+                            'teamNumber': devToTeamNum[eventDict['instance_id']],
                             'sequenceNumber': seqNum,
                             'eventType': "XBOX",
                             'input':
@@ -176,22 +107,57 @@ async def _main():
     #     inputPackage.clear()
     #     #print(inputPackage)
 
-# def waitToKill():
-#     while True:
-#         msg = input("Enter \"-E\" to exit, without the quotation marks.\n")
-#         if msg == "-E":
-#             sys.exit()
+joysticks = []
+doStuff = True
+buttonToString = ["A_BUTTON",
+                  "B_BUTTON",
+                  "X_BUTTON",
+                  "Y_BUTTON",
+                  "LEFT_BUMPER",
+                  "RIGHT_BUMPER",
+                  "VIEW_BUTTON",
+                  "MENU_BUTTON",
+                  "L_JOY_PRESS",
+                  "R_JOY_PRESS",
+                  "XBOX_BUTTON",
+                  "HOME_BUTTON",]
+axisToString = ["L-X",
+                "L-Y",
+                "R-X",
+                "R-Y",
+                "LEFT_TRIGGER",
+                "RIGHT_TRIGGER"
+                ]
 
+devToTeamNum = {}
+teamNums = [0,0]
 try:
     teamNumber = sys.argv[1]
-    int(teamNumber)
+    teamNumberTwo = sys.argv[2]
 
+    #making sure the arg is an int
+    int(teamNumber)
+    int(teamNumberTwo)
+    teamNums[0] = teamNumber
+    teamNums[1] = teamNumberTwo
 except (IndexError, ValueError):
     print("\nWARNING:\n\nThis executable should be run through command prompt with your team number as an argument.\n"
           "Usage:\t'UNTRoboticsXBoxController.exe <team number>'\n"
           "Ex:\t\t'UNTRoboticsXBoxController.exe 12'\n"
           "Quitting program...")
     quit()
+
+pygame.init()
+print("Trying to add controller to list")
+for i in range(0, pygame.joystick.get_count()):
+    # create a Joystick object in our list
+    joysticks.append(pygame.joystick.Joystick(i))
+    print(joysticks[i])
+    if i < 2:
+        devToTeamNum[joysticks[i].get_instance_id()] = teamNums[i]
+    # initialize them all (-1 means loop forever)
+    joysticks[-1].init()
+    print("Initialized {} controller(s).".format(i+1))
 asyncio.run(_main())
 # loop = asyncio.get_event_loop()
 # main_task = asyncio.ensure_future(_main())
