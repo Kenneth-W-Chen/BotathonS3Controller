@@ -18,9 +18,10 @@ async def _main():
             while doStuff:
                 event = pygame.event.wait()
                 event_type = event.type
+                eventDict = event.__dict__
                 #make sure that it's a button input (instead of connecting the controller, activating the mic [idk how that works], etc)
                 if event_type == 1536 or event_type == 1538 or event_type == 1539 or event_type == 1540:
-                    eventDict = event.__dict__
+
                     key = ""
                     if event_type == 1536: #Input is an axis
                         key = axisToString[eventDict['axis']]
@@ -55,12 +56,13 @@ async def _main():
                         newJoystick = pygame.joystick.Joystick(i)
                         joysticks.append(newJoystick)
                         # initialize them all (-1 means loop forever)
-                        joysticks_count = joysticks.count()
-                        instance_id = newJoystick.get_instance_id()
-                        if instance_id in potentialDeviceID:
-                            devToTeamNum[instance_id] = openTeamNums[potentialDeviceID.index(instance_id)]
-                        elif joysticks_count < 2:
-                            devToTeamNum[joysticks[joysticks_count - 1].get_instance_id()] = teamNums[joysticks_count - 1]
+                        joysticks_count = len(joysticks)
+                        if len(openTeamNums) > 0:
+                            instance_id = newJoystick.get_instance_id()
+                            if instance_id in potentialDeviceID:
+                                devToTeamNum[instance_id] = openTeamNums[potentialDeviceID.index(instance_id)]
+                            elif joysticks_count < 2:
+                                devToTeamNum[joysticks[joysticks_count - 1].get_instance_id()] = teamNums[joysticks_count - 1]
                         joysticks[-1].init()
                 elif event_type==1542 and eventDict['instance_id'] in devToTeamNum:
                     instanceID = eventDict['instance_id']
@@ -71,7 +73,7 @@ async def _main():
                     for i in range(len(joysticks)):
                         if joysticks[i].get_instance_id()==instanceID:
                             joysticks.pop(i)
-                            joysticks_count = joysticks.count()
+                            joysticks_count = len(joysticks)
                             break
                 else:
                     print(event)
@@ -178,6 +180,8 @@ for i in range(0, pygame.joystick.get_count()):
     # initialize them all (-1 means loop forever)
     joysticks[-1].init()
     print("Initialized {} controller(s).".format(i+1))
+for openNum in teamNums:
+    openTeamNums.append(openNum)
 asyncio.run(_main())
 # loop = asyncio.get_event_loop()
 # main_task = asyncio.ensure_future(_main())
