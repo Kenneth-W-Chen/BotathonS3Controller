@@ -52,9 +52,27 @@ async def _main():
                 elif event_type==1541: #This is the event for when a controller is connected, just reinitializing the list
                     for i in range(0, pygame.joystick.get_count()):
                         # create a Joystick object in our list
-                        joysticks.append(pygame.joystick.Joystick(i))
+                        newJoystick = pygame.joystick.Joystick(i)
+                        joysticks.append(newJoystick)
                         # initialize them all (-1 means loop forever)
+                        joysticks_count = joysticks.count()
+                        instance_id = newJoystick.get_instance_id()
+                        if instance_id in potentialDeviceID:
+                            devToTeamNum[instance_id] = openTeamNums[potentialDeviceID.index(instance_id)]
+                        elif joysticks_count < 2:
+                            devToTeamNum[joysticks[joysticks_count - 1].get_instance_id()] = teamNums[joysticks_count - 1]
                         joysticks[-1].init()
+                elif event_type==1542 and eventDict['instance_id'] in devToTeamNum:
+                    instanceID = eventDict['instance_id']
+                    openTeamNums.append(devToTeamNum[instanceID])
+                    potentialDeviceID.append(instanceID)
+                    devToTeamNum.pop(instanceID)
+                    #need to remove the controller
+                    for i in range(len(joysticks)):
+                        if joysticks[i].get_instance_id()==instanceID:
+                            joysticks.pop(i)
+                            joysticks_count = joysticks.count()
+                            break
                 else:
                     print(event)
                     # print( await websocket.recv())
@@ -131,6 +149,8 @@ axisToString = ["L-X",
 
 devToTeamNum = {}
 teamNums = [0,0]
+openTeamNums = []
+potentialDeviceID = []
 try:
     teamNumber = sys.argv[1]
     teamNumberTwo = sys.argv[2]
