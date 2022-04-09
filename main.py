@@ -60,10 +60,10 @@ buttonToString = ["A_BUTTON",
                   "R_JOY_PRESS",
                   "XBOX_BUTTON",
                   "HOME_BUTTON",]
-axisToString = ["L-Y",
-                "L-X",
-                "R-Y",
+axisToString = ["L-X",
+                "L-Y",
                 "R-X",
+                "R-Y",
                 "LEFT_TRIGGER",
                 "RIGHT_TRIGGER"
                 ]
