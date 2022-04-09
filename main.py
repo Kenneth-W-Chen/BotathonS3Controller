@@ -9,20 +9,27 @@ import multiprocessing
 async def _main():
     seqNum = 0
     print("Trying to connect to websocket")
+    eventCount = 0
     # async with websockets.connect("ws://untrobotics.com:9111/team",subprotocols=['team']) as websocket:
-    async for websocket in websockets.connect("ws://untrobotics.com:9111/team",subprotocols=['team']):
+    async for websocket in websockets.connect("ws://untrobotics.com:81/team",subprotocols=['team']):
         # while doStuff:
         print("Connected to websocket")
-        #todo: i think this needs the while loop? it might be closing the connection every loop?
         try:
             while doStuff:
                 event = pygame.event.wait()
+                eventCount += 1
                 event_type = event.type
                 eventDict = event.__dict__
-                #make sure that it's a button input (instead of connecting the controller, activating the mic [idk how that works], etc)
+                #make sure that it's a button input (instead of connecting the controller,
+                # activating the mic [idk how that works], etc)
                 if event_type == 1536 or event_type == 1538 or event_type == 1539 or event_type == 1540:
 
                     key = ""
+                    #makes sure the instance id has a number assigned to it
+                    if eventDict["instance_id"] not in devToTeamNum.keys():
+                        print("Controller of instance ID {} is not assigned a team number. Ignoring input."
+                              "Are you sure less than 2 controllers were connected first?".format(eventDict['instance_id']))
+                        break
                     if event_type == 1536: #Input is an axis
                         key = axisToString[eventDict['axis']]
                         value = eventDict['value']
@@ -34,7 +41,9 @@ async def _main():
                     else: #Input is a button
                         key = buttonToString[eventDict['button']]
                         value = event_type == 1539
-                    print("Sending input for {}, value of {}. Total inputs sent: {}".format(key,value, seqNum))
+                    print("Sending input for {}, team number {}, value of {}."
+                          "Total inputs sent: {}".format(key, devToTeamNum[eventDict['instance_id']], value, seqNum))
+                    print(event)
                     await websocket.send(json.dumps(
                     {
                             'teamNumber': devToTeamNum[eventDict['instance_id']],
@@ -50,31 +59,39 @@ async def _main():
                     ))
                     seqNum += 1
                     print("Input successfully sent.")
-                elif event_type==1541: #This is the event for when a controller is connected, just reinitializing the list
-                    for i in range(0, pygame.joystick.get_count()):
-                        # create a Joystick object in our list
-                        newJoystick = pygame.joystick.Joystick(i)
-                        joysticks.append(newJoystick)
-                        # initialize them all (-1 means loop forever)
-                        joysticks_count = len(joysticks)
-                        if len(openTeamNums) > 0:
-                            instance_id = newJoystick.get_instance_id()
-                            if instance_id in potentialDeviceID:
-                                devToTeamNum[instance_id] = openTeamNums[potentialDeviceID.index(instance_id)]
-                            elif joysticks_count < 2:
-                                devToTeamNum[joysticks[joysticks_count - 1].get_instance_id()] = teamNums[joysticks_count - 1]
-                        joysticks[-1].init()
-                elif event_type==1542 and eventDict['instance_id'] in devToTeamNum:
-                    instanceID = eventDict['instance_id']
-                    openTeamNums.append(devToTeamNum[instanceID])
-                    potentialDeviceID.append(instanceID)
-                    devToTeamNum.pop(instanceID)
-                    #need to remove the controller
-                    for i in range(len(joysticks)):
-                        if joysticks[i].get_instance_id()==instanceID:
-                            joysticks.pop(i)
-                            joysticks_count = len(joysticks)
-                            break
+                #todo: does not work, pygame assigns the same instance ID to the controllers when dc'ing and rc'ing
+                # elif event_type == 1541 \
+                #         and len(openTeamNums) > 0:
+                #                         # This is the event for when
+                #                         # a controller is connected, just reinitializing the list
+                #     print("New controller detected.")
+                #     # joysticks.clear()
+                #     for i in range(0, pygame.joystick.get_count()):
+                #         # create a Joystick object in our list
+                #         newJoystick = pygame.joystick.Joystick(i)
+                #         joysticks.append(newJoystick)
+                #         joysticks[i].init()
+                #         joysticks_count = len(joysticks)
+                #         #assigns the last joystick added the corresponding team number based on its index
+                #         devToTeamNum[joysticks[i].get_instance_id()] = openTeamNums[0]
+                #         openTeamNums.pop(0)
+                #         if len(openTeamNums) < 1:
+                #             print("No more open team numbers to assign.")
+                #             break
+                # #controller is disconnected
+                # elif event_type==1542 and eventDict['instance_id'] in devToTeamNum:
+                #     instanceID = eventDict['instance_id']
+                #     openTeamNums.append(devToTeamNum[instanceID])
+                #     # potentialDeviceID.append(instanceID)
+                #     devToTeamNum.pop(instanceID)
+                #     print("Removed the joystick and team numbers from active dictionary.")
+                #     #need to remove the controller
+                #     for i in range(len(joysticks)):
+                #         if joysticks[i].get_instance_id() == instanceID:
+                #             joysticks.pop(i)
+                #             print("Removed joystick from array")
+                #             # joysticks_count = len(joysticks)
+                #             break
                 else:
                     print(event)
                     # print( await websocket.recv())
@@ -82,50 +99,7 @@ async def _main():
             print("Web Socket disconnected. Trying to reconnect...")
             continue
     print("Exited loop.")
-    # clock.tick(1)
-    # for event in pygame.event.get():
-    #     inputPackage.append(event)
-    # if inputPackage:
-    #     print(inputPackage)
-    #     inputPackage.clear()
-        #if the event is for an axis input
-    #     if event.type==1536:
-    #         newAxisValue = event.__dict__['value']
-    #         axisNum = event.__dict__['axis']
-    #         if newAxisValue < .01:
-    #             newAxisValue = 0
-    #         #only send the value if it changed by more than 0.01 since the last update
-    #         if abs(newAxisValue-axisValues[axisNum-1])>.01:
-    #             toAdd = True
-    #             #checking if an input for this axis was already sent this "frame"
-    #             for i in range(len(inputPackage)):
-    #                 #make sure that it is an axes input, and that the axes nums are equal
-    #                 if inputPackage[i][0]=='a' and inputPackage[i][1]==axisNum:
-    #                     #overwriting the axis value
-    #                     axisValues[axisNum] = newAxisValue
-    #                     inputPackage[i]= ('a', axisNum, newAxisValue)
-    #                     toAdd = False
-    #                     break
-    #             if toAdd:
-    #                 axisValues[axisNum] = newAxisValue
-    #                 inputPackage.append(('a', axisNum, newAxisValue))
-    #     # if the event is for a button
-    #     elif event.type==1539 or event.type==1540:
-    #         buttonNum = event.__dict__['button']
-    #         if waitingToSendInput[buttonNum]==-1:
-    #             #Adds a tuple containing what button was pressed and if the button is pressed down (true if it is)
-    #             inputPackage.append(('b', buttonNum, event.type == 1539))
-    #             waitingToSendInput[buttonNum]= 1 if event.type==1539 else 0
-    #         elif waitingToSendInput[buttonNum]==0:
-    #     #d-pad is rarely used, so we can make it the last else
-    #     #there should be no other inputs besides this
-    #     elif event.type==1538:
-    #         inputPackage.append(('d',event.__dict__['value']))
-    # if inputPackage:
-    #     print(inputPackage)
-    #     #send inputPackage
-    #     inputPackage.clear()
-    #     #print(inputPackage)
+
 
 joysticks = []
 doStuff = True
@@ -152,7 +126,9 @@ axisToString = ["L-X",
 devToTeamNum = {}
 teamNums = [0,0]
 openTeamNums = []
-potentialDeviceID = []
+
+# potentialDeviceID = []
+# guidToTeamNum = {}
 try:
     teamNumber = sys.argv[1]
     teamNumberTwo = sys.argv[2]
@@ -175,13 +151,19 @@ for i in range(0, pygame.joystick.get_count()):
     # create a Joystick object in our list
     joysticks.append(pygame.joystick.Joystick(i))
     print(joysticks[i])
+    #only adding 2 controllers we care about
     if i < 2:
+        # print("i < 2. Adding to list")
         devToTeamNum[joysticks[i].get_instance_id()] = teamNums[i]
+        # guidToTeamNum[joysticks[i].()] = teamNums[i]
+        # print("Initialized controller instance {} to team number {}"
+        #       .format(joysticks[i].get_instance_id(), teamNums[i]))
+
     # initialize them all (-1 means loop forever)
     joysticks[-1].init()
-    print("Initialized {} controller(s).".format(i+1))
-for openNum in teamNums:
-    openTeamNums.append(openNum)
+    # print("Initialized {} controller(s).".format(i+1))
+# for openNum in teamNums:
+#     openTeamNums.append(openNum)
 asyncio.run(_main())
 # loop = asyncio.get_event_loop()
 # main_task = asyncio.ensure_future(_main())
